@@ -25,6 +25,16 @@ func IndexFiles(root string, exclude []string) ([]string, error) {
 				return filepath.SkipDir
 			}
 		}
+
+		// Skip hidden files and directories
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
 		if !d.IsDir() {
 			files = append(files, path)
 		}

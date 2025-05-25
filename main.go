@@ -5,14 +5,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 
-	"github.com/MohitSingh65/file-finder/finder"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+
+	"github.com/MohitSingh65/file-finder/finder"
 )
 
 type item string
@@ -35,7 +35,6 @@ func initialModel(files []string) model {
 	input.CharLimit = 256
 	input.Width = 50
 
-	// Minimalist list
 	l := list.New(nil, list.NewDefaultDelegate(), 150, 8)
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
@@ -106,20 +105,42 @@ func (m model) View() string {
 }
 
 func main() {
+	fmt.Println("Loading cache files...")
 
-	home, err := os.UserHomeDir()
+	files, err := finder.LoadFromCache()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		fmt.Print("Cache not found, using fallback...")
+	}
+	go func() {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Println("Failed to get user home:", err)
+			return
+		}
+		updatedFiles, err := finder.IndexFiles(home, []string{".cache", "node_modules"})
+		if err != nil {
+			log.Println("Background indexing failed:", err)
+			return
+		}
+		if err := finder.SaveToCache(updatedFiles); err != nil {
+			log.Println("Failed to write cache:", err)
+		}
+	}()
+
+	// if no cache, wait for background indexing
+	if len(files) == 0 {
+		fmt.Println("Indexing files...")
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		files, err = finder.IndexFiles(home, []string{".cache", "node_modules"})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	path := filepath.Join(home, "Documents")
-
-	fmt.Println("Indexing files...")
-	files, err := finder.IndexFiles(path, []string{".cache", "node_modules"})
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	// launch the UI as before
 	p := tea.NewProgram(initialModel(files))
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
