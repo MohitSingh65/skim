@@ -1,6 +1,6 @@
 ## TODO
 
-- [*] **Implement disk caching**
+- [x] **Implement disk caching**
 
   - Cache indexed file paths to disk (e.g., using JSON or BoltDB)
   - Add option to refresh the cache manually or on a schedule
